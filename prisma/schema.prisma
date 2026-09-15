@@ -1,0 +1,319 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  participant
+  event_admin
+  super
+}
+
+enum PaymentTrigger {
+  before_registration
+  after_round
+  free
+}
+
+enum RegistrationStatus {
+  registered
+  in_round
+  shortlisted
+  eliminated
+  confirmed
+  cancelled
+}
+
+enum PaymentRound {
+  ROUND_1
+  ROUND_2
+}
+
+enum OrderStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// ==========================================
+// FEST
+// ==========================================
+
+model Fest {
+  id        Int      @id @default(autoincrement())
+  name      String
+  year      Int
+  stDate    DateTime @map("st_date")
+  endDate   DateTime @map("end_date")
+  venue     String
+  status    String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("fest")
+}
+
+// ==========================================
+// USERS
+// ==========================================
+
+model User {
+  id           String   @id
+  festId       String   @unique @map("fest_id")
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  email        String   @unique
+  verified     Boolean  @default(false)
+  phoneNumber  String?  @map("phone_number")
+  collegeName  String?  @map("college_name")
+  role         Role     @default(participant)
+  authProvider String   @default("local") @map("auth_provider")
+  password     String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  participantUuid String @unique @default(uuid())
+
+  teamsLeading    Teamnew[]          @relation("TeamLeader")
+  teamMembers     TeamMembernew[]
+  registrations   Registrationnew[]
+  roundSelections RoundSelection[]
+  eventStaff      EventStaffOnsite[]
+  eventOrders     Ordersnew[]
+  eventPayments   EventPaymentnew[]  @relation("eventPayments")
+
+  verifications      Verification[] @relation("VerifiedUser")
+  verificationsGiven Verification[] @relation("VerifiedByUser")
+
+  @@map("users")
+}
+
+// ==========================================
+// EVENTS
+// ==========================================
+
+model Eventnew {
+  id                  String         @id
+  name                String
+  club                String
+  isTeamEvent         Boolean        @default(false) @map("is_team_event")
+  minTeamSize         Int?           @map("min_team_size")
+  maxTeamSize         Int?           @map("max_team_size")
+  price               Int            @default(0) @map("fee")
+  paymentTrigger      PaymentTrigger @map("payment_trigger")
+  paymentRound        PaymentRound   @default(ROUND_1) @map("payment_round")
+  registrationEndTime DateTime       @map("registration_end_time")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @default(now()) @map("updated_at")
+
+  isPaid          Boolean @default(true)
+  paymentPageLink String?
+
+  teams         Teamnew[]
+  registrations Registrationnew[]
+  rounds        EventRound[]
+  staffOnsite   EventStaffOnsite[]
+  orders        Ordersnew[]
+  payments      EventPaymentnew[]
+  verifications Verification[]
+
+  @@map("events")
+}
+
+// ==========================================
+// EVENT ROUNDS
+// ==========================================
+
+model EventRound {
+  id           Int      @id @default(autoincrement())
+  eventId      String   @map("event_id")
+  roundNumber  Int      @map("round_number")
+  name         String?
+  roundEndTime DateTime @map("round_end_time")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  event      Eventnew         @relation(fields: [eventId], references: [id])
+  selections RoundSelection[]
+
+  @@unique([eventId, roundNumber])
+  @@map("event_rounds")
+}
+
+// ==========================================
+// EVENT STAFF ONSITE
+// ==========================================
+
+model EventStaffOnsite {
+  id        Int      @id @default(autoincrement())
+  eventId   String   @map("event_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  event Eventnew @relation(fields: [eventId], references: [id])
+  user  User     @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+  @@map("event_staff_onsite")
+}
+
+// ==========================================
+// TEAMS
+// ==========================================
+
+model Teamnew {
+  id        Int      @id @default(autoincrement())
+  name      String
+  eventId   String   @map("event_id")
+  leaderId  String   @map("leader_id")
+  teamCode  String   @unique @map("team_code")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  event         Eventnew          @relation(fields: [eventId], references: [id])
+  leader        User              @relation("TeamLeader", fields: [leaderId], references: [id])
+  members       TeamMembernew[]
+  registrations Registrationnew[]
+  orders        Ordersnew[]
+  payments      EventPaymentnew[]
+
+  @@map("teams")
+}
+
+// ==========================================
+// TEAM MEMBERS
+// ==========================================
+
+model TeamMembernew {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  team Teamnew @relation(fields: [teamId], references: [id])
+  user User    @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+  @@map("team_members")
+}
+
+// ==========================================
+// REGISTRATIONS
+// ==========================================
+
+model Registrationnew {
+  id        Int                @id @default(autoincrement())
+  eventId   String             @map("event_id")
+  userId    String?            @map("user_id")
+  teamId    Int?               @map("team_id")
+  status    RegistrationStatus
+  metadata  Json?
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @default(now()) @map("updated_at")
+
+  event Eventnew @relation(fields: [eventId], references: [id])
+  user  User?    @relation(fields: [userId], references: [id])
+  team  Teamnew? @relation(fields: [teamId], references: [id])
+
+  @@unique([eventId, userId])
+  @@unique([eventId, teamId])
+  @@map("registrations")
+}
+
+// ==========================================
+// ROUND SELECTIONS
+// ==========================================
+
+model RoundSelection {
+  id           Int       @id @default(autoincrement())
+  eventRoundId Int       @map("event_round_id")
+  userId       String    @map("user_id")
+  selected     Boolean
+  notes        String?
+  decidedAt    DateTime? @map("decided_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @map("updated_at")
+
+  eventRound EventRound @relation(fields: [eventRoundId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([eventRoundId, userId])
+  @@map("round_selections")
+}
+
+// ==========================================
+// EVENT PAYMENTS
+// ==========================================
+
+model Ordersnew {
+  id                String       @id
+  userId            String
+  eventId           String
+  teamId            Int?
+  round             PaymentRound
+  amount            Int
+  status            OrderStatus  @default(PENDING)
+  razorpayOrderId   String?      @unique
+  razorpayPaymentId String?      @unique
+  createdAt         DateTime     @default(now())
+  paidAt            DateTime?
+
+  user    User             @relation(fields: [userId], references: [id])
+  event   Eventnew         @relation(fields: [eventId], references: [id])
+  team    Teamnew?         @relation(fields: [teamId], references: [id])
+  payment EventPaymentnew?
+
+  @@index([userId])
+  @@index([eventId, status])
+}
+
+model EventPaymentnew {
+  id                Int          @id @default(autoincrement())
+  orderId           String       @unique
+  userId            String
+  eventId           String
+  teamId            Int?
+  round             PaymentRound
+  amount            Int
+  razorpayPaymentId String       @unique
+  created_at        DateTime     @default(now())
+
+  order Ordersnew @relation(fields: [orderId], references: [id])
+  user  User      @relation("eventPayments", fields: [userId], references: [id])
+  event Eventnew  @relation(fields: [eventId], references: [id])
+  team  Teamnew?  @relation(fields: [teamId], references: [id])
+
+  @@unique([userId, eventId, round])
+  @@index([eventId])
+}
+
+// ==========================================
+// VERIFICATIONS
+// ==========================================
+
+model Verification {
+  id               Int      @id @default(autoincrement())
+  userId           String   @map("user_id")
+  eventId          String?  @map("event_id")
+  verifiedByUserId String   @map("verified_by_user_id")
+  verifiedAt       DateTime @default(now()) @map("verified_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @map("updated_at")
+
+  user       User      @relation("VerifiedUser", fields: [userId], references: [id])
+  event      Eventnew? @relation(fields: [eventId], references: [id])
+  verifiedBy User      @relation("VerifiedByUser", fields: [verifiedByUserId], references: [id])
+
+  @@map("verifications")
+}
