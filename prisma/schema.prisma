@@ -59,6 +59,8 @@ model Fest {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @map("updated_at")
 
+  events Eventnew[]
+
   @@map("fest")
 }
 
@@ -68,7 +70,6 @@ model Fest {
 
 model User {
   id           String   @id
-  festId       String   @unique @map("fest_id")
   firstName    String   @map("first_name")
   lastName     String   @map("last_name")
   email        String   @unique
@@ -89,9 +90,9 @@ model User {
   roundSelections RoundSelection[]
   eventStaff      EventStaffOnsite[]
   eventOrders     Ordersnew[]
-  eventPayments   EventPaymentnew[]  @relation("eventPayments")
+  eventPayments   EventPaymentnew[] @relation("eventPayments")
 
-  verifications      Verification[] @relation("VerifiedUser")
+  verifications       Verification[] @relation("VerifiedUser")
   verificationsGiven Verification[] @relation("VerifiedByUser")
 
   @@map("users")
@@ -105,6 +106,7 @@ model Eventnew {
   id                  String         @id
   name                String
   club                String
+  festId              Int            @map("fest")
   isTeamEvent         Boolean        @default(false) @map("is_team_event")
   minTeamSize         Int?           @map("min_team_size")
   maxTeamSize         Int?           @map("max_team_size")
@@ -115,8 +117,8 @@ model Eventnew {
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @default(now()) @map("updated_at")
 
-  isPaid          Boolean @default(true)
-  paymentPageLink String?
+  isPaid              Boolean        @default(true)
+  paymentPageLink     String?
 
   teams         Teamnew[]
   registrations Registrationnew[]
@@ -125,6 +127,8 @@ model Eventnew {
   orders        Ordersnew[]
   payments      EventPaymentnew[]
   verifications Verification[]
+
+  fest          Fest             @relation(fields: [festId], references: [id])
 
   @@map("events")
 }
@@ -142,7 +146,7 @@ model EventRound {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @map("updated_at")
 
-  event      Eventnew         @relation(fields: [eventId], references: [id])
+  event      Eventnew        @relation(fields: [eventId], references: [id])
   selections RoundSelection[]
 
   @@unique([eventId, roundNumber])
@@ -257,16 +261,16 @@ model RoundSelection {
 // ==========================================
 
 model Ordersnew {
-  id                String       @id
+  id                String      @id
   userId            String
   eventId           String
   teamId            Int?
   round             PaymentRound
   amount            Int
-  status            OrderStatus  @default(PENDING)
-  razorpayOrderId   String?      @unique
-  razorpayPaymentId String?      @unique
-  createdAt         DateTime     @default(now())
+  status            OrderStatus @default(PENDING)
+  razorpayOrderId   String?     @unique
+  razorpayPaymentId String?     @unique
+  createdAt         DateTime    @default(now())
   paidAt            DateTime?
 
   user    User             @relation(fields: [userId], references: [id])
