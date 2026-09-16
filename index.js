@@ -3,7 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
-const { PrismaClient } = require('@prisma/client');
+const swaggerUi = require('swagger-ui-express');
+
+const prisma = require('./src/lib/prisma');
+const swaggerSpec = require('./src/config/swagger');
+const adminRoutes = require('./src/routes/admin');
+const { error: sendError } = require('./src/lib/response');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -11,14 +16,26 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Initialize Prisma
-const prisma = new PrismaClient();
-
 // Initialize Supabase Client
 const supabaseUrl = process.env.SUPABASE_URL;
 // Prefer service role key for backend verification, fallback to anon key
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+// ─── Swagger UI ──────────────────────────────────────────────────
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'TantraFiesta Admin API Docs',
+}));
+
+// Expose raw OpenAPI spec as JSON
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// ─── Existing endpoints ──────────────────────────────────────────
 
 // Expose public configuration for the mock frontend
 app.get('/api/config', (req, res) => {
@@ -106,6 +123,24 @@ app.post('/api/auth/sync', async (req, res) => {
   }
 });
 
+// ─── Admin API ───────────────────────────────────────────────────
+app.use('/api/admin', adminRoutes);
+
+// ─── Global error handler ────────────────────────────────────────
+// Catches errors thrown by services (NotFoundError, ValidationError, etc.)
+app.use((err, req, res, _next) => {
+  console.error(`[${req.method}] ${req.originalUrl} →`, err.message);
+
+  const statusCode = err.statusCode || 500;
+  const message =
+    statusCode === 500 && process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message;
+
+  return sendError(res, message, statusCode, err.details);
+});
+
+// ─── Static files & SPA fallback ─────────────────────────────────
 // Serve static mock frontend
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -116,5 +151,7 @@ app.use((req, res) => {
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
+  console.log(`Swagger UI:   http://localhost:${port}/api-docs`);
+  console.log(`Admin API:    http://localhost:${port}/api/admin`);
   console.log(`Open http://localhost:${port} in your browser to test Google OAuth.`);
 });
