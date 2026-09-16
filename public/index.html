@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Techfest 2026 - Google OAuth Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --code-bg: #090d16;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--primary);
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    .btn-google {
+      background: #ffffff;
+      color: #1f2937;
+    }
+    .btn-google:hover {
+      background: #f3f4f6;
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      margin-top: 16px;
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+    .status-box {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+    }
+    .status-badge {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .status-badge.loading { background: #eab308; }
+    .status-badge.success { background: var(--success); }
+    .status-badge.error { background: var(--danger); }
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid var(--primary);
+    }
+    .user-info h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .user-info p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #cbd5e1;
+      margin-top: 12px;
+      max-height: 250px;
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">Techfest 2026 Authentication</div>
+    <h1>Google OAuth Flow Test</h1>
+    <p class="subtitle">
+      Sign in with Google via Supabase Auth and test synchronization with the PostgreSQL database.
+    </p>
+
+    <div id="loading-state" class="status-box">
+      <span class="status-badge loading"></span> Initializing Supabase client...
+    </div>
+
+    <div id="unauthenticated-view" class="hidden">
+      <button id="google-login-btn" class="btn btn-google">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.26 21.36 7.36 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.28 14.27A7.2 7.2 0 0 1 4.9 12c0-.79.14-1.55.38-2.27V6.58H1.26A11.96 11.96 0 0 0 0 12c0 1.92.45 3.74 1.26 5.42l4.02-3.15z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+        </svg>
+        Continue with Google
+      </button>
+    </div>
+
+    <div id="authenticated-view" class="hidden">
+      <div class="user-profile">
+        <img id="user-avatar" class="avatar" src="" alt="Avatar" />
+        <div class="user-info">
+          <h3 id="user-name">User Name</h3>
+          <p id="user-email">email@example.com</p>
+        </div>
+      </div>
+
+      <div class="status-box">
+        <span id="sync-badge" class="status-badge loading"></span>
+        <span id="sync-status">Syncing with backend database...</span>
+      </div>
+
+      <p style="margin-top: 16px; font-size: 13px; color: var(--text-muted);">Database Record (Prisma User Model):</p>
+      <pre><code id="db-result">Loading...</code></pre>
+
+      <button id="logout-btn" class="btn btn-danger">Sign Out</button>
+    </div>
+
+    <div id="error-box" class="status-box hidden" style="border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; margin-top: 16px;">
+    </div>
+  </div>
+
+  <script>
+    let supabaseClient = null;
+
+    async function init() {
+      const loadingState = document.getElementById('loading-state');
+      const unauthView = document.getElementById('unauthenticated-view');
+      const authView = document.getElementById('authenticated-view');
+      const errorBox = document.getElementById('error-box');
+
+      try {
+        // Fetch public config from backend
+        const res = await fetch('/api/config');
+        const config = await res.json();
+
+        if (!config.supabaseUrl || !config.supabaseAnonKey) {
+          throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY are not configured yet in .env.');
+        }
+
+        supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+        loadingState.classList.add('hidden');
+
+        // Check active session
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        handleSession(session);
+
+        // Listen to auth state changes
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+          handleSession(session);
+        });
+
+      } catch (err) {
+        loadingState.classList.add('hidden');
+        showError(err.message);
+      }
+    }
+
+    async function handleSession(session) {
+      const unauthView = document.getElementById('unauthenticated-view');
+      const authView = document.getElementById('authenticated-view');
+
+      if (!session) {
+        unauthView.classList.remove('hidden');
+        authView.classList.add('hidden');
+        return;
+      }
+
+      unauthView.classList.add('hidden');
+      authView.classList.remove('hidden');
+
+      const user = session.user;
+      const metadata = user.user_metadata || {};
+
+      document.getElementById('user-name').textContent = metadata.full_name || metadata.name || 'User';
+      document.getElementById('user-email').textContent = user.email || '';
+      document.getElementById('user-avatar').src = metadata.avatar_url || metadata.picture || 'https://www.gravatar.com/avatar?d=mp';
+
+      // Sync user with backend API
+      syncWithBackend(session.access_token);
+    }
+
+    async function syncWithBackend(token) {
+      const syncStatus = document.getElementById('sync-status');
+      const syncBadge = document.getElementById('sync-badge');
+      const dbResult = document.getElementById('db-result');
+
+      syncBadge.className = 'status-badge loading';
+      syncStatus.textContent = 'Syncing user profile with backend database...';
+
+      try {
+        const response = await fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to sync with backend');
+        }
+
+        syncBadge.className = 'status-badge success';
+        syncStatus.textContent = 'Successfully authenticated and synced to PostgreSQL via Prisma!';
+        dbResult.textContent = JSON.stringify(data.user, null, 2);
+      } catch (err) {
+        syncBadge.className = 'status-badge error';
+        syncStatus.textContent = 'Sync failed: ' + err.message;
+        dbResult.textContent = JSON.stringify({ error: err.message }, null, 2);
+      }
+    }
+
+    function showError(msg) {
+      const errorBox = document.getElementById('error-box');
+      errorBox.textContent = msg;
+      errorBox.classList.remove('hidden');
+    }
+
+    document.getElementById('google-login-btn').addEventListener('click', async () => {
+      if (!supabaseClient) return;
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) showError(error.message);
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      if (!supabaseClient) return;
+      await supabaseClient.auth.signOut();
+    });
+
+    init();
+  </script>
+</body>
+</html>
