@@ -4,13 +4,12 @@ const { NotFoundError, ValidationError } = require('../../lib/errors');
 /**
  * Get results (round selections) for an event, grouped by round.
  */
-async function getResultsByEvent(eventId) {
+async function getResultsByEvent(eventId, roundId) {
   const event = await prisma.eventnew.findUnique({ where: { id: eventId } });
   if (!event) throw new NotFoundError('Event', eventId);
 
-  const rounds = await prisma.eventRound.findMany({
-    where: { eventId },
-    orderBy: { roundNumber: 'asc' },
+  const round = await prisma.eventRound.findFirst({
+    where: { id: roundId, eventId },
     include: {
       selections: {
         include: {
@@ -29,20 +28,74 @@ async function getResultsByEvent(eventId) {
     },
   });
 
+  if (!round) {
+    throw new NotFoundError(`EventRound ${roundId} for Event`, eventId);
+  }
+
+  let formattedSelections = [];
+  let totalSelections = 0;
+  let promoted = 0;
+  let eliminated = 0;
+
+  if (event.isTeamEvent) {
+    const teams = await prisma.teamnew.findMany({
+      where: { eventId },
+      include: { members: { select: { userId: true } } },
+    });
+
+    const userToSelectionMap = new Map();
+    for (const sel of round.selections) {
+      userToSelectionMap.set(sel.userId, sel);
+    }
+
+    for (const team of teams) {
+      let teamSelection = userToSelectionMap.get(team.leaderId);
+      if (!teamSelection) {
+        for (const member of team.members) {
+          if (userToSelectionMap.has(member.userId)) {
+            teamSelection = userToSelectionMap.get(member.userId);
+            break;
+          }
+        }
+      }
+
+      if (teamSelection) {
+        const isQualified = teamSelection.selected;
+        if (isQualified) promoted++;
+        else eliminated++;
+
+        formattedSelections.push({
+          teamId: team.id,
+          teamName: team.name,
+          teamCode: team.teamCode,
+          status: isQualified ? 'QUALIFIED' : 'DISQUALIFIED',
+          notes: teamSelection.notes,
+        });
+      }
+    }
+    totalSelections = formattedSelections.length;
+  } else {
+    formattedSelections = round.selections.map(s => ({
+      ...s,
+      status: s.selected ? 'QUALIFIED' : 'DISQUALIFIED'
+    }));
+    totalSelections = round.selections.length;
+    promoted = round.selections.filter((s) => s.selected).length;
+    eliminated = round.selections.filter((s) => !s.selected).length;
+  }
+
   return {
     eventId,
     eventName: event.name,
     isTeamEvent: event.isTeamEvent,
-    rounds: rounds.map((r) => ({
-      roundId: r.id,
-      roundNumber: r.roundNumber,
-      name: r.name,
-      roundEndTime: r.roundEndTime,
-      selections: r.selections,
-      totalSelections: r.selections.length,
-      promoted: r.selections.filter((s) => s.selected).length,
-      eliminated: r.selections.filter((s) => !s.selected).length,
-    })),
+    roundId: round.id,
+    roundNumber: round.roundNumber,
+    name: round.name,
+    roundEndTime: round.roundEndTime,
+    selections: formattedSelections,
+    totalSelections,
+    promoted,
+    eliminated,
   };
 }
 
@@ -56,15 +109,15 @@ async function getResultsByEvent(eventId) {
  * - Team events:       accepts { teamIds: [...] }
  *   → resolves all team members and creates RoundSelection entries for each.
  */
-async function promoteToRound(roundId, { userIds, teamIds, notes }) {
+async function promoteToRound(eventId, roundId, { userIds, teamIds, notes }) {
   // 1. Fetch the round and its event
-  const round = await prisma.eventRound.findUnique({
-    where: { id: roundId },
+  const round = await prisma.eventRound.findFirst({
+    where: { id: roundId, eventId },
     include: {
       event: { select: { id: true, name: true, isTeamEvent: true } },
     },
   });
-  if (!round) throw new NotFoundError('EventRound', roundId);
+  if (!round) throw new NotFoundError(`EventRound ${roundId} for Event`, eventId);
 
   const { event } = round;
   const isTeam = event.isTeamEvent;

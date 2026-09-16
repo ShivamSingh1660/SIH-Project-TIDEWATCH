@@ -18,6 +18,19 @@ const roundIdParam = Joi.object({
   id: Joi.number().integer().positive().required().label('Round ID'),
 });
 
+const eventAndRoundParams = Joi.object({
+  eventId: Joi.string().trim().required().label('Event ID'),
+  roundId: Joi.number().integer().positive().required().label('Round ID'),
+});
+
+const eventIdOnlyParam = Joi.object({
+  eventId: Joi.string().trim().required().label('Event ID'),
+});
+
+const resultsQuery = Joi.object({
+  round_id: Joi.number().integer().positive().required().label('Round ID'),
+});
+
 // ─── Query schemas ──────────────────────────────────────────────
 
 const paginationQuery = Joi.object({
@@ -72,6 +85,9 @@ module.exports = {
   registrationIdParam,
   teamIdParam,
   roundIdParam,
+  eventAndRoundParams,
+  eventIdOnlyParam,
+  resultsQuery,
   paginationQuery,
   updateEventBody,
   createRoundBody,

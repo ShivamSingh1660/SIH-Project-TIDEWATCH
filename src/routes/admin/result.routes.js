@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const validate = require('../../lib/validate');
 const {
-  eventIdParam,
-  roundIdParam,
+  eventIdOnlyParam,
+  eventAndRoundParams,
+  resultsQuery,
   promoteBody,
 } = require('../../validators/admin.validators');
 const {
@@ -12,18 +13,24 @@ const {
 
 /**
  * @swagger
- * /api/admin/events/{id}/results:
+ * /api/admin/events/{eventId}/results:
  *   get:
  *     tags: [Results / Promotion]
- *     summary: Get results for an event
+ *     summary: Get results for an event and specific round
  *     description: Returns all round selections (promoted/eliminated) grouped by round, with user details.
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: eventId
  *         required: true
  *         schema:
  *           type: string
  *         description: Event ID
+ *       - in: query
+ *         name: round_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Round ID whose results are being viewed
  *     responses:
  *       200:
  *         description: Event results grouped by round
@@ -74,14 +81,14 @@ const {
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get(
-  '/events/:id/results',
-  validate({ params: eventIdParam }),
+  '/events/:eventId/results',
+  validate({ params: eventIdOnlyParam, query: resultsQuery }),
   getResultsByEvent
 );
 
 /**
  * @swagger
- * /api/admin/rounds/{id}/promote:
+ * /api/admin/events/{eventId}/rounds/{roundId}/promote:
  *   post:
  *     tags: [Results / Promotion]
  *     summary: Promote participants/teams to a round
@@ -95,11 +102,17 @@ router.get(
  *       Sending the wrong ID type (e.g., `userIds` for a team event) returns a 400 error.
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event ID
+ *       - in: path
+ *         name: roundId
  *         required: true
  *         schema:
  *           type: integer
- *         description: Round ID to promote into
+ *         description: Target round ID to promote into
  *     requestBody:
  *       required: true
  *       content:
@@ -173,8 +186,8 @@ router.get(
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post(
-  '/rounds/:id/promote',
-  validate({ params: roundIdParam, body: promoteBody }),
+  '/events/:eventId/rounds/:roundId/promote',
+  validate({ params: eventAndRoundParams, body: promoteBody }),
   promote
 );
 

@@ -3,9 +3,13 @@ const { success } = require('../../lib/response');
 
 async function getRegistrationsByEvent(req, res, next) {
   try {
+    const { page, limit, ...rest } = req.query;
+    const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+
     const data = await registrationService.getRegistrationsByEvent(
       req.params.id,
-      req.query
+      { ...rest, page: parsedPage, limit: parsedLimit }
     );
     return success(res, data);
   } catch (err) {

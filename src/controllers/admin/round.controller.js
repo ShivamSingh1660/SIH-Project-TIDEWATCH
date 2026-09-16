@@ -21,7 +21,7 @@ async function createRound(req, res, next) {
 
 async function updateRound(req, res, next) {
   try {
-    const data = await roundService.updateRound(req.params.id, req.body);
+    const data = await roundService.updateRound(req.params.eventId, parseInt(req.params.roundId, 10), req.body);
     return success(res, data);
   } catch (err) {
     next(err);

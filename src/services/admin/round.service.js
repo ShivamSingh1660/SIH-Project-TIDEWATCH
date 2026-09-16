@@ -54,9 +54,11 @@ async function createRound(eventId, { roundNumber, name, roundEndTime }) {
 /**
  * Update a round by ID.
  */
-async function updateRound(id, data) {
-  const existing = await prisma.eventRound.findUnique({ where: { id } });
-  if (!existing) throw new NotFoundError('EventRound', id);
+async function updateRound(eventId, roundId, data) {
+  const existing = await prisma.eventRound.findFirst({
+    where: { id: roundId, eventId },
+  });
+  if (!existing) throw new NotFoundError(`Round ${roundId} not found for Event`, eventId);
 
   const updateData = { updatedAt: new Date() };
   if (data.name !== undefined) updateData.name = data.name || null;
@@ -64,7 +66,7 @@ async function updateRound(id, data) {
     updateData.roundEndTime = new Date(data.roundEndTime);
 
   const updated = await prisma.eventRound.update({
-    where: { id },
+    where: { id: roundId },
     data: updateData,
     include: {
       event: { select: { id: true, name: true } },

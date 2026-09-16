@@ -3,6 +3,7 @@ const validate = require('../../lib/validate');
 const {
   eventIdParam,
   roundIdParam,
+  eventAndRoundParams,
   createRoundBody,
   updateRoundBody,
 } = require('../../validators/admin.validators');
@@ -127,18 +128,24 @@ router.post(
 
 /**
  * @swagger
- * /api/admin/rounds/{id}:
+ * /api/admin/events/{eventId}/rounds/{roundId}:
  *   patch:
  *     tags: [Rounds]
  *     summary: Update a round
  *     description: Partially update a round's name or end time.
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event ID
+ *       - in: path
+ *         name: roundId
  *         required: true
  *         schema:
  *           type: integer
- *         description: Round ID
+ *         description: Round ID belonging to that event
  *     requestBody:
  *       required: true
  *       content:
@@ -179,8 +186,8 @@ router.post(
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.patch(
-  '/rounds/:id',
-  validate({ params: roundIdParam, body: updateRoundBody }),
+  '/events/:eventId/rounds/:roundId',
+  validate({ params: eventAndRoundParams, body: updateRoundBody }),
   updateRound
 );
 
